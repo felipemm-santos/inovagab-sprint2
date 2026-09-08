@@ -1,0 +1,59 @@
+# ==============================
+# Sistemas operacionais
+# ==============================
+.DS_Store
+Thumbs.db
+
+# ==============================
+# IDEs
+# ==============================
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# ==============================
+# Variáveis e arquivos sensíveis
+# ==============================
+.env
+.env.*
+!.env.example
+
+**/application-local.yml
+**/application-local.yaml
+**/application-secrets.yml
+**/application-secrets.yaml
+
+# ==============================
+# Backend - Maven / Spring Boot
+# ==============================
+backend-api/target/
+backend-api/logs/
+*.log
+
+# Mantém o Maven Wrapper
+!backend-api/.mvn/wrapper/maven-wrapper.jar
+
+# ==============================
+# Frontend - Android / Gradle
+# ==============================
+android-app/.gradle/
+android-app/.kotlin/
+android-app/build/
+android-app/app/build/
+android-app/local.properties
+android-app/captures/
+android-app/.externalNativeBuild/
+android-app/.cxx/
+
+# Arquivo de configuração do Firebase
+android-app/app/google-services.json
+
+# ==============================
+# Arquivos temporários
+# ==============================
+*.tmp
+*.temp
+*.swp
+*~
