@@ -1,0 +1,5 @@
+spring:
+  mongodb:
+    # DynamicPropertySource substitui a URI inteira pelo contêiner de testes.
+    # Sem esse suporte, falha em vez de acessar o banco local.
+    uri: ${TEST_MONGODB_URI}
