@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: inovagab-api
+
+  profiles:
+    default: local
+  data:
+    mongodb:
+      auto-index-creation: false
+
+server:
+  port: ${SERVER_PORT:8080}
+
+  servlet:
+    context-path: /api
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+  endpoint:
+    health:
+      show-details: never
