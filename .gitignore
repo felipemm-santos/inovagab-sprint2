@@ -17,11 +17,7 @@ Thumbs.db
 # Variáveis e arquivos sensíveis
 # ==============================
 .env
-.env.*
-!.env.example
 
-**/application-local.yml
-**/application-local.yaml
 **/application-secrets.yml
 **/application-secrets.yaml
 

@@ -1,0 +1,37 @@
+spring:
+  mongodb:
+    # Configuração local: aceita sobrescrita por variável de ambiente.
+    uri: "${MONGODB_URI:mongodb://inovagab:123456@localhost:27017/inovagab?authSource=admin&serverSelectionTimeoutMS=5000}"
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+inovagab:
+  security:
+    jwt:
+      # Valores demonstrativos para facilitar a execução.
+      secret: ${JWT_SECRET:aW5vdmFnYWItbG9jYWwtand0LXNlY3JldC1rZXktMzItYnl0ZXMh}
+      issuer: ${JWT_ISSUER:inovagab-api-local}
+      expiration: ${JWT_EXPIRATION:PT1H}
+  bootstrap:
+    demo-users:
+      enabled: ${DEMO_USERS_ENABLED:true}
+      password: ${DEMO_USERS_PASSWORD:000000}
+      operador:
+        name: ${DEMO_OPERATOR_NAME:Operador Base}
+        email: ${DEMO_OPERATOR_EMAIL:operador@aguiabranca.com.br}
+      gestor:
+        name: ${DEMO_MANAGER_NAME:Gestor Tático}
+        email: ${DEMO_MANAGER_EMAIL:gestor@aguiabranca.com.br}
+      lider:
+        name: ${DEMO_LEADER_NAME:Líder Executivo}
+        email: ${DEMO_LEADER_EMAIL:lider@aguiabranca.com.br}
