@@ -72,6 +72,41 @@ public class SecurityConfig {
                         .authenticated()
                         .requestMatchers(HttpMethod.POST, "/v1/users")
                         .hasRole("LIDER")
+                        .requestMatchers(HttpMethod.POST, "/v1/guidelines")
+                        .hasRole("LIDER")
+                        .requestMatchers(HttpMethod.PUT, "/v1/guidelines/*")
+                        .hasRole("LIDER")
+                        .requestMatchers(HttpMethod.DELETE, "/v1/guidelines/*")
+                        .hasRole("LIDER")
+                        .requestMatchers(HttpMethod.GET, "/v1/guidelines/**")
+                        .authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/v1/ideas/*/priority")
+                        .hasRole("GESTOR")
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/v1/ideas/*/approve",
+                                "/v1/ideas/*/reject"
+                        ).hasRole("GESTOR")
+                        .requestMatchers(HttpMethod.GET, "/v1/ideas/mine")
+                        .hasRole("OPERADOR")
+                        .requestMatchers(HttpMethod.GET, "/v1/ideas")
+                        .hasRole("GESTOR")
+                        .requestMatchers(HttpMethod.GET, "/v1/ideas/*")
+                        .hasAnyRole("OPERADOR", "GESTOR")
+                        .requestMatchers(HttpMethod.POST, "/v1/ideas")
+                        .hasRole("OPERADOR")
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/v1/ideas/*"
+                        ).hasRole("OPERADOR")
+                        .requestMatchers(HttpMethod.DELETE, "/v1/ideas/*")
+                        .hasRole("OPERADOR")
+                        .requestMatchers(HttpMethod.GET, "/v1/projects/**")
+                        .hasAnyRole("GESTOR", "LIDER")
+                        .requestMatchers(HttpMethod.POST, "/v1/projects")
+                        .hasRole("GESTOR")
+                        .requestMatchers(HttpMethod.PUT, "/v1/projects/*")
+                        .hasRole("GESTOR")
                         .requestMatchers("/actuator/**")
                         .hasRole("LIDER")
                         .requestMatchers(

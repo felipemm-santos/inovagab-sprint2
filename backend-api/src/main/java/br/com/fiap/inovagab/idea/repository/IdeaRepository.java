@@ -14,5 +14,6 @@ public interface IdeaRepository extends MongoRepository<IdeaDocument, String> {
     List<IdeaDocument> findAllByStatusOrderByCreatedAtAsc(IdeaStatus status);
 
     List<IdeaDocument> findAllByStrategicGuidelineId(String strategicGuidelineId);
-}
 
+    List<IdeaDocument> findAllByOrderByCreatedAtDesc();
+}
