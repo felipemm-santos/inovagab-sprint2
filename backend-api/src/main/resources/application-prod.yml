@@ -1,6 +1,17 @@
 spring:
   mongodb:
     uri: ${MONGODB_URI}
+
+server:
+  port: ${SERVER_PORT}
+
+inovagab:
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+      issuer: ${JWT_ISSUER}
+      expiration: ${JWT_EXPIRATION}
+
 springdoc:
   api-docs:
     enabled: false

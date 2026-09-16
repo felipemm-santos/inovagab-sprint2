@@ -9,8 +9,6 @@ spring:
       auto-index-creation: false
 
 server:
-  port: ${SERVER_PORT:8080}
-
   servlet:
     context-path: /api
 
