@@ -4,9 +4,9 @@ Plataforma de gestão do funil de inovação do Grupo Águia Branca, desenvolvid
 
 Este repositório reúne o aplicativo Android e o backend da Sprint 2. A entrega da Sprint 1 permanece em um repositório separado.
 
-> **Status:** estrutura inicial, persistência MongoDB e autenticação JWT implementadas no backend. Os CRUDs de negócio e a integração do Android com a API continuam em desenvolvimento.
+> **Status:** persistência MongoDB, autenticação JWT, autorização por perfil e APIs de diretrizes, ideias e projetos implementadas no backend. A integração do Android com a API continua em desenvolvimento.
 
-O INOVAGAB é um projeto acadêmico do curso de Análise e Desenvolvimento de Sistemas da FIAP. A 
+O INOVAGAB é um projeto acadêmico do curso de Análise e Desenvolvimento de Sistemas da FIAP. A
 configuração local prioriza facilidade de execução e demonstração, sem deixar de aplicar boas práticas como hash de senha, autorização no backend e separação entre os perfis `local` e `prod`.
 
 ## Objetivo
@@ -37,7 +37,7 @@ As permissões devem ser verificadas no backend, incluindo a propriedade dos reg
 | Observabilidade | Spring Boot Actuator, logs e auditoria a configurar |
 | IA | Integração planejada para apoiar a pontuação e priorização de ideias; provedor a definir |
 
-As versões efetivas devem ser conferidas no `backend-api/pom.xml` e nos arquivos Gradle do Android. O backend utiliza Spring Data MongoDB
+As versões efetivas devem ser conferidas no `backend-api/pom.xml` e nos arquivos Gradle do Android. O backend utiliza Spring Data MongoDB.
 
 ## Organização do repositório
 
@@ -97,8 +97,8 @@ java -version
 .\mvnw.cmd --version
 ```
 
-O perfil padrão é `local`. Seu arquivo `application-local.yml` é versionado e já contém valores 
-padrão para MongoDB, JWT e usuários de demonstração. Cada valor também pode ser substituído por 
+O perfil padrão é `local`. Seu arquivo `application-local.yml` é versionado e já contém valores
+padrão para MongoDB, JWT e usuários de demonstração. Cada valor também pode ser substituído por
 variável de ambiente, mas nenhuma configuração adicional é necessária para a execução padrão com o Docker Compose do projeto.
 
 A partir da raiz do repositório, inicie o MongoDB e depois o backend:
@@ -182,6 +182,37 @@ O logout desta etapa é realizado descartando o access token no aplicativo. Como
 
 Erros de autenticação são retornados em JSON com `status`, `code`, `message`, `path` e `timestamp`. Os códigos principais são `INVALID_CREDENTIALS`, `AUTHENTICATION_REQUIRED`, `INVALID_TOKEN` e `ACCESS_DENIED`.
 
+### Endpoints de negócio
+
+Todas as rotas abaixo usam o prefixo `/api` definido pelo `context-path`.
+
+| Método | Rota | Acesso | Finalidade |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/guidelines` | Autenticado | Líder consulta todas as diretrizes não excluídas; demais perfis recebem somente as ativas e vigentes. |
+| `GET` | `/api/v1/guidelines/{id}` | Autenticado | Consulta uma diretriz respeitando visibilidade e vigência. |
+| `POST` | `/api/v1/guidelines` | `LIDER` | Cria uma diretriz. |
+| `PUT` | `/api/v1/guidelines/{id}` | `LIDER` | Atualiza uma diretriz e preserva a versão anterior no histórico. |
+| `DELETE` | `/api/v1/guidelines/{id}` | `LIDER` | Realiza exclusão lógica e arquiva a diretriz. |
+| `POST` | `/api/v1/ideas` | `OPERADOR` | Cadastra uma ideia para o usuário autenticado. |
+| `GET` | `/api/v1/ideas/mine` | `OPERADOR` | Lista somente as ideias do usuário autenticado. |
+| `GET` | `/api/v1/ideas/{id}` | `OPERADOR`, `GESTOR` | Operador consulta apenas ideia própria; Gestor pode consultar qualquer ideia. |
+| `PUT` | `/api/v1/ideas/{id}` | `OPERADOR` | Atualiza uma ideia própria enquanto estiver em `SUBMITTED`. |
+| `DELETE` | `/api/v1/ideas/{id}` | `OPERADOR` | Exclui uma ideia própria enquanto estiver em `SUBMITTED`. |
+| `GET` | `/api/v1/ideas` | `GESTOR` | Lista todas as ideias, com filtro opcional `status`. |
+| `PATCH` | `/api/v1/ideas/{id}/priority` | `GESTOR` | Define prioridade e pontuação gerencial. |
+| `POST` | `/api/v1/ideas/{id}/approve` | `GESTOR` | Aprova a ideia e cria um único projeto de forma idempotente. |
+| `POST` | `/api/v1/ideas/{id}/reject` | `GESTOR` | Rejeita uma ideia com justificativa. |
+| `GET` | `/api/v1/projects` | `GESTOR`, `LIDER` | Lista projetos, com filtro opcional `status`. |
+| `GET` | `/api/v1/projects/{id}` | `GESTOR`, `LIDER` | Consulta projeto, resultados, lucro e ROI. |
+| `POST` | `/api/v1/projects` | `GESTOR` | Cria um projeto manual. |
+| `PUT` | `/api/v1/projects/{id}` | `GESTOR` | Atualiza planejamento, andamento e resultados. |
+
+As requisições de escrita usam DTOs validados. Datas de término não podem anteceder datas de início, valores financeiros não podem ser negativos e decisões sobre ideias exigem justificativa. O `authorId` e o `managerId` são obtidos do JWT, não do corpo enviado pelo cliente.
+
+Projetos não possuem exclusão física na API. Para preservar histórico e indicadores, o Gestor deve atualizar o status para `CANCELLED` quando uma iniciativa for encerrada sem conclusão.
+
+As respostas de erro incluem um `requestId`, também devolvido no cabeçalho `X-Request-Id`, para correlação com os logs. Os principais códigos de negócio são `GUIDELINE_NOT_FOUND`, `GUIDELINE_NOT_ACTIVE`, `IDEA_NOT_FOUND`, `IDEA_ACCESS_DENIED`, `INVALID_IDEA_STATUS`, `PROJECT_NOT_FOUND`, `INVALID_ID` e `VALIDATION_ERROR`.
+
 ## Planejamento da Sprint 2
 
 ### Base e integração
@@ -193,19 +224,19 @@ Erros de autenticação são retornados em JSON com `status`, `code`, `message`,
 
 ### Funcionalidades
 
-- [ ] Completar o CRUD de diretrizes, incluindo edição pelo Líder.
-- [ ] Permitir consulta de diretrizes pelo Gestor e pelo Operador.
-- [ ] Registrar histórico das estratégias, com data, categoria e campanha.
-- [ ] Implementar gestão de ideias vinculadas às estratégias.
-- [ ] Implementar avaliação e priorização de ideias pelo Gestor.
-- [ ] Preservar no backend a conversão de ideia aprovada em projeto, prevenindo duplicidades.
-- [ ] Implementar gestão de projetos, progresso e resultados vinculados às estratégias.
+- [x] Completar o CRUD de diretrizes, incluindo edição pelo Líder.
+- [x] Permitir consulta de diretrizes pelo Gestor e pelo Operador.
+- [x] Registrar histórico das estratégias, com data, categoria e campanha.
+- [x] Implementar gestão de ideias vinculadas às estratégias.
+- [x] Implementar avaliação e priorização de ideias pelo Gestor.
+- [x] Preservar no backend a conversão de ideia aprovada em projeto, prevenindo duplicidades.
+- [x] Implementar gestão de projetos, progresso e resultados vinculados às estratégias.
 - [ ] Disponibilizar indicadores agregados por projeto e estratégia para o dashboard.
 
 ### Qualidade e entrega
 
-- [ ] Implementar validação, tratamento de erros e testes para todos os módulos (autenticação concluída).
-- [ ] Configurar logs, auditoria e métricas.
+- [x] Implementar validação, tratamento de erros e testes para autenticação e módulos de negócio.
+- [x] Configurar logs de requisição, request ID, auditoria de operações e métricas do Actuator.
 - [ ] Integrar IA para apoiar pontuação e priorização de ideias.
 - [ ] Documentar endpoints: método, rota, payload, resposta e permissões.
 - [ ] Atualizar o diagrama conforme a arquitetura implementada.
