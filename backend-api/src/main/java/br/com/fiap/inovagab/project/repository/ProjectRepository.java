@@ -15,5 +15,6 @@ public interface ProjectRepository extends MongoRepository<ProjectDocument, Stri
     List<ProjectDocument> findAllByStatus(ProjectStatus status);
 
     List<ProjectDocument> findAllByStrategicGuidelineId(String strategicGuidelineId);
-}
 
+    List<ProjectDocument> findAllByOrderByUpdatedAtDesc();
+}
