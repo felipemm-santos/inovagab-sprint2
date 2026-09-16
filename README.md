@@ -4,7 +4,10 @@ Plataforma de gestão do funil de inovação do Grupo Águia Branca, desenvolvid
 
 Este repositório reúne o aplicativo Android e o backend da Sprint 2. A entrega da Sprint 1 permanece em um repositório separado.
 
-> **Status:** estruturação inicial do backend e preparação da integração. As funcionalidades da Sprint 2 descritas abaixo são objetivos de implementação, não uma declaração de que já estão disponíveis. As instruções devem ser atualizadas conforme os incrementos forem validados.
+> **Status:** estrutura inicial, persistência MongoDB e autenticação JWT implementadas no backend. Os CRUDs de negócio e a integração do Android com a API continuam em desenvolvimento.
+
+O INOVAGAB é um projeto acadêmico do curso de Análise e Desenvolvimento de Sistemas da FIAP. A 
+configuração local prioriza facilidade de execução e demonstração, sem deixar de aplicar boas práticas como hash de senha, autorização no backend e separação entre os perfis `local` e `prod`.
 
 ## Objetivo
 
@@ -28,13 +31,13 @@ As permissões devem ser verificadas no backend, incluindo a propriedade dos reg
 | --- | --- |
 | Aplicativo Android | Kotlin, Jetpack Compose, Material Design 3, MVVM, StateFlow e Coroutines |
 | Backend | Java 21, Spring Boot 4.1.1 e Maven |
-| Segurança | Spring Security e autenticação JWT a implementar |
+| Segurança | Spring Security, BCrypt e autenticação JWT stateless |
 | Persistência | MongoDB e Spring Data MongoDB |
 | Código e validação | Lombok e Jakarta Bean Validation |
 | Observabilidade | Spring Boot Actuator, logs e auditoria a configurar |
 | IA | Integração planejada para apoiar a pontuação e priorização de ideias; provedor a definir |
 
-As versões efetivas devem ser conferidas no `backend-api/pom.xml` e nos arquivos Gradle do Android. O backend utiliza Spring Data MongoDB, não JPA/Hibernate.
+As versões efetivas devem ser conferidas no `backend-api/pom.xml` e nos arquivos Gradle do Android. O backend utiliza Spring Data MongoDB
 
 ## Organização do repositório
 
@@ -83,7 +86,6 @@ git clone https://github.com/felipemm-santos/inovagab-sprint2.git
 Set-Location inovagab-sprint2
 ```
 
-Se o nome remoto for diferente, utilize a URL fornecida pelo GitHub.
 
 ### Backend
 
@@ -95,11 +97,18 @@ java -version
 .\mvnw.cmd --version
 ```
 
-Antes de executar, configure a conexão MongoDB e as propriedades exigidas pela aplicação. A configuração de ambientes, os nomes das variáveis e as credenciais de desenvolvimento ainda serão definidos; não há um Docker Compose validado documentado nesta etapa.
+O perfil padrão é `local`. Seu arquivo `application-local.yml` é versionado e já contém valores 
+padrão para MongoDB, JWT e usuários de demonstração. Cada valor também pode ser substituído por 
+variável de ambiente, mas nenhuma configuração adicional é necessária para a execução padrão com o Docker Compose do projeto.
 
-Após configurar os serviços necessários:
+A partir da raiz do repositório, inicie o MongoDB e depois o backend:
 
 ```powershell
+# Na raiz do projeto
+docker compose up -d
+
+Set-Location backend-api
+
 # Executar os testes disponíveis
 .\mvnw.cmd test
 
@@ -107,7 +116,14 @@ Após configurar os serviços necessários:
 .\mvnw.cmd spring-boot:run
 ```
 
-Os comandos são os pontos de entrada do Maven Wrapper, não evidências de que a integração já foi testada. A disponibilidade de endpoints depende da implementação, da configuração do banco e das regras de segurança.
+### Perfis de configuração
+
+| Perfil | Comportamento |
+| --- | --- |
+| `local` | Usa valores padrão versionados e aceita sobrescrita por variáveis de ambiente. Cria os três usuários acadêmicos se ainda não existirem. |
+| `test` | Usa MongoDB do Testcontainers e configuração JWT exclusiva dos testes. |
+| `prod` | Não possui valores padrão para porta, MongoDB ou JWT; exige `SERVER_PORT`, `MONGODB_URI`, `JWT_SECRET`, `JWT_ISSUER` e `JWT_EXPIRATION`. |
+
 
 ### Aplicativo Android
 
@@ -128,21 +144,51 @@ O endereço da API, a política de conexão do ambiente de desenvolvimento e os 
 
 ## Segurança e configuração
 
-- Não versionar senhas, tokens, chaves privadas, arquivos `.env` com valores reais ou chaves de assinatura do Android.
-- Manter exemplos de configuração sem segredos e documentar as variáveis quando forem implementadas.
-- Um arquivo `.env` não é carregado automaticamente pelo Spring Boot: seu carregamento precisa ser configurado explicitamente ou substituído por variáveis do ambiente/IDE.
-- Armazenar senhas com hash seguro; não reutilizar as senhas demonstrativas da Sprint 1.
-- Validar JWT e permissões no servidor. O aplicativo não deve decidir o papel de um usuário.
+- Não versionar credenciais reais, tokens ou chaves privadas. As credenciais acadêmicas abaixo são fictícias e foram versionadas intencionalmente para facilitar a demonstração.
+- As senhas são persistidas somente como hash BCrypt com fator de custo 12 e nunca são retornadas pelos DTOs.
+- Os perfis reconhecidos são `OPERADOR`, `GESTOR` e `LIDER`; eles são obtidos do banco e incluídos no JWT assinado.
+- O cadastro público cria exclusivamente `OPERADOR`. Somente um `LIDER` autenticado pode cadastrar usuários com outro perfil.
+- O JWT é enviado no cabeçalho `Authorization: Bearer <token>`, possui expiração configurável e é validado quanto à assinatura, emissor e validade.
+- A API usa sessão stateless e nega por padrão qualquer rota que não possua uma regra explícita.
 - Evitar tokens, senhas e dados pessoais desnecessários nos logs.
 - Preservar Maven Wrapper e Gradle Wrapper no Git para permitir builds reproduzíveis.
+
+### Endpoints de autenticação e usuários
+
+Com o `context-path` atual, todas as URLs abaixo recebem o prefixo `/api`:
+
+| Método | Rota | Acesso | Finalidade |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/auth/register` | Público | Cadastra um usuário `OPERADOR`. |
+| `POST` | `/api/v1/auth/login` | Público | Valida as credenciais e retorna o access token. |
+| `GET` | `/api/v1/auth/me` | Autenticado | Retorna os dados atuais do usuário do token. |
+| `POST` | `/api/v1/users` | `LIDER` | Cadastra `OPERADOR`, `GESTOR` ou `LIDER`. |
+
+### Credenciais padrão
+
+No perfil `local`, os usuários abaixo são criados automaticamente caso seus e-mails ainda não estejam cadastrados:
+
+| Perfil | E-mail | Senha |
+| --- | --- | --- |
+| Operador - Base | `operador@aguiabranca.com.br` | `000000` |
+| Gestor - Tático | `gestor@aguiabranca.com.br` | `000000` |
+| Líder - Executivo | `lider@aguiabranca.com.br` | `000000` |
+
+Os valores podem ser substituídos pelas variáveis `DEMO_USERS_PASSWORD`, `DEMO_OPERATOR_EMAIL`, `DEMO_MANAGER_EMAIL` e `DEMO_LEADER_EMAIL`. Para desativar a criação automática, defina `DEMO_USERS_ENABLED=false`.
+
+O inicializador não altera usuários já existentes. Se a senha de um usuário demonstrativo for modificada no banco, a aplicação preservará a alteração nas próximas inicializações.
+
+O logout desta etapa é realizado descartando o access token no aplicativo. Como ainda não há refresh token nem lista de revogação, um novo login será necessário após a expiração.
+
+Erros de autenticação são retornados em JSON com `status`, `code`, `message`, `path` e `timestamp`. Os códigos principais são `INVALID_CREDENTIALS`, `AUTHENTICATION_REQUIRED`, `INVALID_TOKEN` e `ACCESS_DENIED`.
 
 ## Planejamento da Sprint 2
 
 ### Base e integração
 
-- [ ] Estruturar Spring Boot, Spring Security, Spring Data MongoDB e Lombok.
-- [ ] Configurar MongoDB e ambientes de execução.
-- [ ] Implementar autenticação e autorização para os três perfis.
+- [x] Estruturar Spring Boot, Spring Security, Spring Data MongoDB e Lombok.
+- [x] Configurar MongoDB e ambientes de execução.
+- [x] Implementar autenticação e autorização para os três perfis.
 - [ ] Integrar os fluxos Android ao backend e substituir os acessos anteriores conforme a migração.
 
 ### Funcionalidades
@@ -158,7 +204,7 @@ O endereço da API, a política de conexão do ambiente de desenvolvimento e os 
 
 ### Qualidade e entrega
 
-- [ ] Implementar validação, tratamento de erros e testes.
+- [ ] Implementar validação, tratamento de erros e testes para todos os módulos (autenticação concluída).
 - [ ] Configurar logs, auditoria e métricas.
 - [ ] Integrar IA para apoiar pontuação e priorização de ideias.
 - [ ] Documentar endpoints: método, rota, payload, resposta e permissões.
