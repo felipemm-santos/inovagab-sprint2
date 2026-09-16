@@ -12,6 +12,7 @@ public record ApiErrorResponse(
         String code,
         String message,
         String path,
+        String requestId,
         List<FieldViolation> fieldErrors
 ) {
 
@@ -19,7 +20,8 @@ public record ApiErrorResponse(
             HttpStatus status,
             String code,
             String message,
-            String path
+            String path,
+            String requestId
     ) {
         return new ApiErrorResponse(
                 Instant.now(),
@@ -28,6 +30,7 @@ public record ApiErrorResponse(
                 code,
                 message,
                 path,
+                requestId,
                 List.of()
         );
     }
@@ -35,6 +38,7 @@ public record ApiErrorResponse(
     public static ApiErrorResponse validation(
             String message,
             String path,
+            String requestId,
             List<FieldViolation> violations
     ) {
         HttpStatus status = HttpStatus.BAD_REQUEST;
@@ -45,6 +49,7 @@ public record ApiErrorResponse(
                 "VALIDATION_ERROR",
                 message,
                 path,
+                requestId,
                 violations
         );
     }
