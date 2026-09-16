@@ -9,6 +9,7 @@ public enum AuditEventType {
     GUIDELINE_DELETED,
     IDEA_CREATED,
     IDEA_UPDATED,
+    IDEA_DELETED,
     IDEA_PRIORITIZED,
     IDEA_APPROVED,
     IDEA_REJECTED,
@@ -19,4 +20,3 @@ public enum AuditEventType {
     AI_ANALYSIS_COMPLETED,
     AI_ANALYSIS_FAILED
 }
-
