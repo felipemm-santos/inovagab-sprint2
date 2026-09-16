@@ -23,6 +23,5 @@ public interface StrategicGuidelineRepository
             """)
     List<StrategicGuidelineDocument> findActiveAndEffectiveAt(Instant instant);
 
-    List<StrategicGuidelineDocument> findAllByDeletedAtIsNull();
+    List<StrategicGuidelineDocument> findAllByDeletedAtIsNullOrderByUpdatedAtDesc();
 }
-
