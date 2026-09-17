@@ -39,7 +39,7 @@ public class DashboardService {
     public DashboardSummaryResponse getSummary() {
         Instant generatedAt = Instant.now();
         return summarize(
-                projectRepository.findAll(),
+                projectRepository.findAllByDeletedAtIsNullOrderByUpdatedAtDesc(),
                 generatedAt,
                 LocalDate.ofInstant(generatedAt, ZoneOffset.UTC)
         );
@@ -47,7 +47,8 @@ public class DashboardService {
 
     public ProjectDashboardResponse getProjectReport(String projectId) {
         MongoIdValidator.requireValid(projectId);
-        ProjectDocument project = projectRepository.findById(projectId)
+        ProjectDocument project = projectRepository
+                .findByIdAndDeletedAtIsNull(projectId)
                 .orElseThrow(() -> new ApiException(
                         HttpStatus.NOT_FOUND,
                         "PROJECT_NOT_FOUND",
@@ -94,7 +95,10 @@ public class DashboardService {
         Instant generatedAt = Instant.now();
 
         DashboardSummaryResponse summary = summarize(
-                projectRepository.findAllByStrategicGuidelineId(guidelineId),
+                projectRepository
+                        .findAllByStrategicGuidelineIdAndDeletedAtIsNull(
+                                guidelineId
+                        ),
                 generatedAt,
                 LocalDate.ofInstant(generatedAt, ZoneOffset.UTC)
         );
