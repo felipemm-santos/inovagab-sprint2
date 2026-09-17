@@ -12,9 +12,13 @@ public interface ProjectRepository extends MongoRepository<ProjectDocument, Stri
 
     Optional<ProjectDocument> findBySourceIdeaId(String sourceIdeaId);
 
-    List<ProjectDocument> findAllByStatus(ProjectStatus status);
+    Optional<ProjectDocument> findByIdAndDeletedAtIsNull(String id);
 
-    List<ProjectDocument> findAllByStrategicGuidelineId(String strategicGuidelineId);
+    List<ProjectDocument> findAllByStatusAndDeletedAtIsNull(ProjectStatus status);
 
-    List<ProjectDocument> findAllByOrderByUpdatedAtDesc();
+    List<ProjectDocument> findAllByStrategicGuidelineIdAndDeletedAtIsNull(
+            String strategicGuidelineId
+    );
+
+    List<ProjectDocument> findAllByDeletedAtIsNullOrderByUpdatedAtDesc();
 }

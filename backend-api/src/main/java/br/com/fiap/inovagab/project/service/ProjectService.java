@@ -33,7 +33,9 @@ public class ProjectService {
     private final BusinessAuditService auditService;
 
     public ProjectResponse create(CreateProjectRequest request, String managerId) {
-        guidelineService.requireExisting(request.strategicGuidelineId());
+        guidelineService.requireActiveAndEffective(
+                request.strategicGuidelineId()
+        );
         validateDates(request.startDate(), request.expectedEndDate());
 
         var project = ProjectDocument.builder()
@@ -64,8 +66,8 @@ public class ProjectService {
 
     public List<ProjectResponse> findAll(ProjectStatus status) {
         List<ProjectDocument> projects = status == null
-                ? projectRepository.findAllByOrderByUpdatedAtDesc()
-                : projectRepository.findAllByStatus(status);
+                ? projectRepository.findAllByDeletedAtIsNullOrderByUpdatedAtDesc()
+                : projectRepository.findAllByStatusAndDeletedAtIsNull(status);
         return projects.stream().map(ProjectResponse::from).toList();
     }
 
@@ -83,7 +85,9 @@ public class ProjectService {
                 project.getStrategicGuidelineId(),
                 request.strategicGuidelineId()
         )) {
-            guidelineService.requireExisting(request.strategicGuidelineId());
+            guidelineService.requireActiveAndEffective(
+                    request.strategicGuidelineId()
+            );
         }
         validateDates(request.startDate(), request.expectedEndDate());
         ProjectStatus previousStatus = project.getStatus();
@@ -111,6 +115,20 @@ public class ProjectService {
                 saved.getId()
         );
         return ProjectResponse.from(saved);
+    }
+
+    public void delete(String id, String actorId) {
+        ProjectDocument project = findExisting(id);
+        project.setDeletedAt(Instant.now());
+        project.setDeletedBy(actorId);
+        projectRepository.save(project);
+
+        auditService.record(
+                AuditEventType.PROJECT_DELETED,
+                actorId,
+                "PROJECT",
+                project.getId()
+        );
     }
 
     public ProjectCreationResult createFromApprovedIdea(
@@ -159,7 +177,7 @@ public class ProjectService {
 
     private ProjectDocument findExisting(String id) {
         MongoIdValidator.requireValid(id);
-        return projectRepository.findById(id)
+        return projectRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ApiException(
                         HttpStatus.NOT_FOUND,
                         "PROJECT_NOT_FOUND",

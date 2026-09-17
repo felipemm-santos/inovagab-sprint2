@@ -170,6 +170,50 @@ class DashboardIntegrationTest extends MongoIntegrationTestSupport {
     }
 
     @Test
+    void deletedProjectShouldBeAbsentFromEveryDashboardReport()
+            throws Exception {
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        StrategicGuidelineDocument guideline = saveGuideline(
+                "Eficiência operacional"
+        );
+        ProjectDocument project = saveProject(
+                guideline.getId(),
+                "Projeto excluído",
+                ProjectStatus.IN_PROGRESS,
+                today.minusDays(5),
+                today.plusDays(5),
+                null,
+                "200.00",
+                "250.00",
+                "30.00",
+                "40.00"
+        );
+        project.setDeletedAt(Instant.now());
+        project.setDeletedBy(MANAGER_ID);
+        projectRepository.save(project);
+
+        mockMvc.perform(get("/v1/dashboard/summary")
+                        .with(as(UserRole.LIDER, LEADER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalProjects").value(0))
+                .andExpect(jsonPath("$.totalInvestment").value(0));
+
+        mockMvc.perform(get(
+                        "/v1/dashboard/strategies/{guidelineId}",
+                        guideline.getId()
+                ).with(as(UserRole.LIDER, LEADER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.totalProjects").value(0));
+
+        mockMvc.perform(get(
+                        "/v1/dashboard/projects/{projectId}",
+                        project.getId()
+                ).with(as(UserRole.LIDER, LEADER_ID)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("PROJECT_NOT_FOUND"));
+    }
+
+    @Test
     void dashboardShouldBeRestrictedToLeader() throws Exception {
         mockMvc.perform(get("/v1/dashboard/summary")
                         .with(as(UserRole.GESTOR, MANAGER_ID)))

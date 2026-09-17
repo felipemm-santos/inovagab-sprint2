@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import br.com.fiap.inovagab.MongoIntegrationTestSupport;
+import br.com.fiap.inovagab.audit.model.AuditEventType;
 import br.com.fiap.inovagab.audit.repository.AuditEventRepository;
 import br.com.fiap.inovagab.guideline.document.StrategicGuidelineDocument;
 import br.com.fiap.inovagab.guideline.model.GuidelineStatus;
@@ -334,6 +335,104 @@ class BusinessCrudAuthorizationIntegrationTest
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void projectShouldRejectExpiredGuidelineOnCreateAndStrategyChange()
+            throws Exception {
+
+        StrategicGuidelineDocument activeGuideline = activeGuideline();
+
+        StrategicGuidelineDocument expiredGuideline = expiredGuideline();
+
+        mockMvc.perform(post("/v1/projects")
+                        .with(as(UserRole.GESTOR, MANAGER_ID))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(projectBody(
+                                expiredGuideline.getId(),
+                                "PLANNED",
+                                "100.00",
+                                "0.00"
+                        )))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("GUIDELINE_NOT_ACTIVE"));
+
+        mockMvc.perform(post("/v1/projects")
+                        .with(as(UserRole.GESTOR, MANAGER_ID))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(projectBody(
+                                activeGuideline.getId(),
+                                "PLANNED",
+                                "100.00",
+                                "0.00"
+                        )))
+                .andExpect(status().isCreated());
+
+        String projectId = projectRepository.findAll().getFirst().getId();
+        mockMvc.perform(put("/v1/projects/{id}", projectId)
+                        .with(as(UserRole.GESTOR, MANAGER_ID))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(projectBody(
+                                expiredGuideline.getId(),
+                                "IN_PROGRESS",
+                                "100.00",
+                                "0.00"
+                        )))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("GUIDELINE_NOT_ACTIVE"));
+    }
+
+    @Test
+    void onlyManagerShouldSoftDeleteProjectAndRecordAudit() throws Exception {
+        StrategicGuidelineDocument guideline = activeGuideline();
+
+        mockMvc.perform(post("/v1/projects")
+                        .with(as(UserRole.GESTOR, MANAGER_ID))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(projectBody(
+                                guideline.getId(),
+                                "PLANNED",
+                                "100.00",
+                                "0.00"
+                        )))
+                .andExpect(status().isCreated());
+
+        String projectId = projectRepository.findAll().getFirst().getId();
+
+        mockMvc.perform(delete("/v1/projects/{id}", projectId)
+                        .with(as(UserRole.LIDER, LEADER_ID)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+
+        mockMvc.perform(delete("/v1/projects/{id}", projectId)
+                        .with(as(UserRole.OPERADOR, OPERATOR_ID)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+
+        mockMvc.perform(delete("/v1/projects/{id}", projectId)
+                        .with(as(UserRole.GESTOR, MANAGER_ID)))
+                .andExpect(status().isNoContent());
+
+        var deleted = projectRepository.findById(projectId).orElseThrow();
+        assertThat(deleted.getDeletedAt()).isNotNull();
+        assertThat(deleted.getDeletedBy()).isEqualTo(MANAGER_ID);
+        assertThat(auditEventRepository.findAll())
+                .anySatisfy(event -> {
+                    assertThat(event.getEventType())
+                            .isEqualTo(AuditEventType.PROJECT_DELETED);
+                    assertThat(event.getEntityId()).isEqualTo(projectId);
+                    assertThat(event.getActorId()).isEqualTo(MANAGER_ID);
+                });
+
+        mockMvc.perform(get("/v1/projects/{id}", projectId)
+                        .with(as(UserRole.LIDER, LEADER_ID)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("PROJECT_NOT_FOUND"));
+
+        mockMvc.perform(get("/v1/projects")
+                        .with(as(UserRole.GESTOR, MANAGER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
     private StrategicGuidelineDocument activeGuideline() {
         return guidelineRepository.save(StrategicGuidelineDocument.builder()
                 .title("Excelência operacional")
@@ -343,6 +442,21 @@ class BusinessCrudAuthorizationIntegrationTest
                 .status(GuidelineStatus.ACTIVE)
                 .validFrom(Instant.now().minusSeconds(3600))
                 .validUntil(Instant.now().plusSeconds(86_400))
+                .version(1)
+                .createdBy(LEADER_ID)
+                .updatedBy(LEADER_ID)
+                .build());
+    }
+
+    private StrategicGuidelineDocument expiredGuideline() {
+        return guidelineRepository.save(StrategicGuidelineDocument.builder()
+                .title("Diretriz vencida")
+                .description("Diretriz fora do período de vigência")
+                .category("Operações")
+                .campaign("Plano 2025")
+                .status(GuidelineStatus.ACTIVE)
+                .validFrom(Instant.now().minusSeconds(7200))
+                .validUntil(Instant.now().minusSeconds(3600))
                 .version(1)
                 .createdBy(LEADER_ID)
                 .updatedBy(LEADER_ID)
