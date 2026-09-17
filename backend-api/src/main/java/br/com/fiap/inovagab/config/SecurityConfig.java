@@ -107,6 +107,8 @@ public class SecurityConfig {
                         .hasRole("GESTOR")
                         .requestMatchers(HttpMethod.PUT, "/v1/projects/*")
                         .hasRole("GESTOR")
+                        .requestMatchers(HttpMethod.GET, "/v1/dashboard/**")
+                        .hasRole("LIDER")
                         .requestMatchers("/actuator/**")
                         .hasRole("LIDER")
                         .requestMatchers(
