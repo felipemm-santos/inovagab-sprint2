@@ -4,7 +4,7 @@ Plataforma de gestão do funil de inovação do Grupo Águia Branca, desenvolvid
 
 Este repositório reúne o aplicativo Android e o backend da Sprint 2. A entrega da Sprint 1 permanece em um repositório separado.
 
-> **Status:** persistência MongoDB, autenticação JWT, autorização por perfil e APIs de diretrizes, ideias, projetos e dashboard implementadas no backend. A integração do Android com a API continua em desenvolvimento.
+> **Status:** persistência MongoDB, autenticação JWT, autorização por perfil e APIs de diretrizes, ideias e projetos implementadas no backend. A integração do Android com a API continua em desenvolvimento.
 
 O INOVAGAB é um projeto acadêmico do curso de Análise e Desenvolvimento de Sistemas da FIAP. A
 configuração local prioriza facilidade de execução e demonstração, sem deixar de aplicar boas práticas como hash de senha, autorização no backend e separação entre os perfis `local` e `prod`.
@@ -206,15 +206,11 @@ Todas as rotas abaixo usam o prefixo `/api` definido pelo `context-path`.
 | `GET` | `/api/v1/projects/{id}` | `GESTOR`, `LIDER` | Consulta projeto, resultados, lucro e ROI. |
 | `POST` | `/api/v1/projects` | `GESTOR` | Cria um projeto manual. |
 | `PUT` | `/api/v1/projects/{id}` | `GESTOR` | Atualiza planejamento, andamento e resultados. |
-| `GET` | `/api/v1/dashboard/summary` | `LIDER` | Retorna indicadores consolidados de todos os projetos. |
-| `GET` | `/api/v1/dashboard/projects/{projectId}` | `LIDER` | Retorna indicadores financeiros e operacionais de um projeto. |
-| `GET` | `/api/v1/dashboard/strategies/{guidelineId}` | `LIDER` | Retorna os indicadores consolidados dos projetos vinculados à diretriz. |
+| `DELETE` | `/api/v1/projects/{id}` | `GESTOR` | Exclui logicamente um projeto criado incorretamente. |
 
 As requisições de escrita usam DTOs validados. Datas de término não podem anteceder datas de início, valores financeiros não podem ser negativos e decisões sobre ideias exigem justificativa. O `authorId` e o `managerId` são obtidos do JWT, não do corpo enviado pelo cliente.
 
-Projetos não possuem exclusão física na API. Para preservar histórico e indicadores, o Gestor deve atualizar o status para `CANCELLED` quando uma iniciativa for encerrada sem conclusão.
-
-O dashboard calcula os indicadores no backend. O lucro corresponde ao retorno financeiro menos o investimento, e o ROI geral usa os totais consolidados em vez da média dos ROIs individuais. Quando o investimento é zero, o ROI é `null` e a resposta informa o motivo. Um projeto é considerado atrasado quando o prazo esperado já passou e seu status não é `COMPLETED` nem `CANCELLED`. As durações médias são retornadas em dias; a duração real considera somente projetos concluídos com data de início e conclusão disponíveis.
+Projetos usam exclusão lógica para preservar o histórico de auditoria. Registros excluídos deixam de aparecer nas consultas e nos indicadores do dashboard. O status `CANCELLED` continua sendo usado quando uma iniciativa válida é encerrada por decisão de negócio; a exclusão fica reservada a registros criados incorretamente.
 
 As respostas de erro incluem um `requestId`, também devolvido no cabeçalho `X-Request-Id`, para correlação com os logs. Os principais códigos de negócio são `GUIDELINE_NOT_FOUND`, `GUIDELINE_NOT_ACTIVE`, `IDEA_NOT_FOUND`, `IDEA_ACCESS_DENIED`, `INVALID_IDEA_STATUS`, `PROJECT_NOT_FOUND`, `INVALID_ID` e `VALIDATION_ERROR`.
 
@@ -236,7 +232,7 @@ As respostas de erro incluem um `requestId`, também devolvido no cabeçalho `X-
 - [x] Implementar avaliação e priorização de ideias pelo Gestor.
 - [x] Preservar no backend a conversão de ideia aprovada em projeto, prevenindo duplicidades.
 - [x] Implementar gestão de projetos, progresso e resultados vinculados às estratégias.
-- [x] Disponibilizar indicadores agregados por projeto e estratégia para o dashboard.
+- [ ] Disponibilizar indicadores agregados por projeto e estratégia para o dashboard.
 
 ### Qualidade e entrega
 
