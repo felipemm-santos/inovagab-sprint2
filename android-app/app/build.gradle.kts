@@ -2,7 +2,6 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.google.gms.google.services)
 }
 
 android {
@@ -56,17 +55,12 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.kotlinx.coroutines.android)
 
     // Bibliotecas necessárias para a Navegação e os ViewModels
 
     implementation(libs.androidx.navigation.compose)
     implementation(libs.lifecycle.viewmodel.compose)
-
-    // Bibliotecas Firebase
-    implementation(libs.firebase.auth)
-    implementation(libs.firebase.database)
 
 
     // Testes e ferramentas de debug

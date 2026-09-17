@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import br.com.fiap.inovagab.data.model.getFormattedDate
 import br.com.fiap.inovagab.ui.viewmodel.InnovationViewModel
-import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,6 +30,22 @@ fun OperadorDashboardScreen(
 ) {
     val ideas by viewModel.ideas.collectAsState()
     val guidelines by viewModel.guidelines.collectAsState()
+    val guidelineLoading by viewModel.guidelineLoading.collectAsState()
+    val guidelineMessage by viewModel.guidelineMessage.collectAsState()
+    val ideaLoading by viewModel.ideaLoading.collectAsState()
+    val ideaMessage by viewModel.ideaMessage.collectAsState()
+    if (ideaLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+    ideaMessage?.let { message ->
+        AlertDialog(onDismissRequest = viewModel::clearIdeaMessage,
+            title = { Text("Ideias") }, text = { Text(message) },
+            confirmButton = { TextButton(onClick = viewModel::clearIdeaMessage) { Text("OK") } })
+    }
+    if (guidelineLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+    guidelineMessage?.let { message ->
+        AlertDialog(onDismissRequest = viewModel::clearGuidelineMessage,
+            title = { Text("Diretrizes") }, text = { Text(message) },
+            confirmButton = { TextButton(onClick = viewModel::clearGuidelineMessage) { Text("OK") } })
+    }
 
     var selectedFilter by remember { mutableStateOf("Todas") }
     var showDialog by remember { mutableStateOf(false) }
@@ -211,7 +226,6 @@ fun OperadorDashboardScreen(
             item {
                 Button(
                     onClick = {
-                        FirebaseAuth.getInstance().signOut()
                         onLogout()
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -234,6 +248,7 @@ fun OperadorDashboardScreen(
         var title by remember { mutableStateOf("") }
         var desc by remember { mutableStateOf("") }
         var category by remember { mutableStateOf("Logística") }
+        var guidelineId by remember { mutableStateOf("") }
 
         AlertDialog(
             onDismissRequest = { showDialog = false },
@@ -253,6 +268,15 @@ fun OperadorDashboardScreen(
                         label = { Text("Descrição detalhada") },
                         modifier = Modifier.fillMaxWidth()
                     )
+                    Text("Diretriz estratégica", fontWeight = FontWeight.Bold)
+                    if (guidelines.isEmpty()) Text("Nenhuma diretriz ativa disponível.")
+                    guidelines.forEach { guideline ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = guidelineId == guideline.id,
+                                onClick = { guidelineId = guideline.id })
+                            Text(guideline.title)
+                        }
+                    }
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text("Divisão afetada:", fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -278,11 +302,11 @@ fun OperadorDashboardScreen(
             },
             confirmButton = {
                 Button(onClick = {
-                    if (title.isNotBlank()) {
-                        viewModel.sendNewIdea(title, desc, "Colaborador de Bordo", category)
+                    if (title.isNotBlank() && desc.isNotBlank() && guidelineId.isNotBlank()) {
+                        viewModel.sendNewIdea(title, desc, category, guidelineId)
                         showDialog = false
                     }
-                }) { Text("Enviar ideia") }
+                }, enabled = !ideaLoading && guidelines.isNotEmpty()) { Text("Enviar ideia") }
             },
             dismissButton = {
                 TextButton(onClick = { showDialog = false }) { Text("Cancelar") }
