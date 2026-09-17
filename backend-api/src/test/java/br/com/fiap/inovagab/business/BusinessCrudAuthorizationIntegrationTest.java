@@ -380,6 +380,59 @@ class BusinessCrudAuthorizationIntegrationTest
                 .andExpect(jsonPath("$.code").value("GUIDELINE_NOT_ACTIVE"));
     }
 
+    @Test
+    void onlyManagerShouldSoftDeleteProjectAndRecordAudit() throws Exception {
+        StrategicGuidelineDocument guideline = activeGuideline();
+
+        mockMvc.perform(post("/v1/projects")
+                        .with(as(UserRole.GESTOR, MANAGER_ID))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(projectBody(
+                                guideline.getId(),
+                                "PLANNED",
+                                "100.00",
+                                "0.00"
+                        )))
+                .andExpect(status().isCreated());
+
+        String projectId = projectRepository.findAll().getFirst().getId();
+
+        mockMvc.perform(delete("/v1/projects/{id}", projectId)
+                        .with(as(UserRole.LIDER, LEADER_ID)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+
+        mockMvc.perform(delete("/v1/projects/{id}", projectId)
+                        .with(as(UserRole.OPERADOR, OPERATOR_ID)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+
+        mockMvc.perform(delete("/v1/projects/{id}", projectId)
+                        .with(as(UserRole.GESTOR, MANAGER_ID)))
+                .andExpect(status().isNoContent());
+
+        var deleted = projectRepository.findById(projectId).orElseThrow();
+        assertThat(deleted.getDeletedAt()).isNotNull();
+        assertThat(deleted.getDeletedBy()).isEqualTo(MANAGER_ID);
+        assertThat(auditEventRepository.findAll())
+                .anySatisfy(event -> {
+                    assertThat(event.getEventType())
+                            .isEqualTo(AuditEventType.PROJECT_DELETED);
+                    assertThat(event.getEntityId()).isEqualTo(projectId);
+                    assertThat(event.getActorId()).isEqualTo(MANAGER_ID);
+                });
+
+        mockMvc.perform(get("/v1/projects/{id}", projectId)
+                        .with(as(UserRole.LIDER, LEADER_ID)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("PROJECT_NOT_FOUND"));
+
+        mockMvc.perform(get("/v1/projects")
+                        .with(as(UserRole.GESTOR, MANAGER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
     private StrategicGuidelineDocument activeGuideline() {
         return guidelineRepository.save(StrategicGuidelineDocument.builder()
                 .title("Excelência operacional")

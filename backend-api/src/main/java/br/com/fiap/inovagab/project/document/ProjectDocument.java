@@ -68,6 +68,13 @@ public class ProjectDocument extends AuditableDocument {
     @Field("completedAt")
     private Instant completedAt;
 
+    @Indexed(name = "ix_projects_deleted_at")
+    @Field("deletedAt")
+    private Instant deletedAt;
+
+    @Field("deletedBy")
+    private String deletedBy;
+
     @Builder.Default
     @Field(name = "investment", targetType = FieldType.DECIMAL128)
     private BigDecimal investment = BigDecimal.ZERO;
@@ -84,4 +91,3 @@ public class ProjectDocument extends AuditableDocument {
     @Field(name = "productivityGain", targetType = FieldType.DECIMAL128)
     private BigDecimal productivityGain = BigDecimal.ZERO;
 }
-

@@ -77,6 +77,7 @@ class MongoCollectionInitializerTest
                         "ux_projects_source_idea",
                         "ix_projects_status",
                         "ix_projects_guideline",
+                        "ix_projects_deleted_at",
                         "ix_projects_guideline_status"
                 );
     }
