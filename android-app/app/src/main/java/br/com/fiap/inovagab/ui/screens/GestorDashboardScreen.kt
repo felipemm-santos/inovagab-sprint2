@@ -20,7 +20,6 @@ import br.com.fiap.inovagab.data.model.CorporateProject
 import br.com.fiap.inovagab.data.model.InnovationIdea
 import br.com.fiap.inovagab.data.model.toBrazilianCurrency
 import br.com.fiap.inovagab.ui.viewmodel.InnovationViewModel
-import com.google.firebase.auth.FirebaseAuth
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,10 +33,40 @@ fun GestorDashboardScreen(
     val ideas by viewModel.ideas.collectAsState()
     val projects by viewModel.projects.collectAsState()
     val guidelines by viewModel.guidelines.collectAsState()
+    val guidelineLoading by viewModel.guidelineLoading.collectAsState()
+    val guidelineMessage by viewModel.guidelineMessage.collectAsState()
+    val ideaLoading by viewModel.ideaLoading.collectAsState()
+    val ideaMessage by viewModel.ideaMessage.collectAsState()
+    val projectLoading by viewModel.projectLoading.collectAsState()
+    val projectMessage by viewModel.projectMessage.collectAsState()
+    val aiSuggestion by viewModel.aiSuggestion.collectAsState()
+    val aiLoading by viewModel.aiLoading.collectAsState()
+    val aiError by viewModel.aiError.collectAsState()
+    if (projectLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+    projectMessage?.let { message ->
+        AlertDialog(onDismissRequest = viewModel::clearProjectMessage,
+            title = { Text("Projetos") }, text = { Text(message) },
+            confirmButton = { TextButton(onClick = viewModel::clearProjectMessage) { Text("OK") } })
+    }
+    if (ideaLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+    ideaMessage?.let { message ->
+        AlertDialog(onDismissRequest = viewModel::clearIdeaMessage,
+            title = { Text("Ideias") }, text = { Text(message) },
+            confirmButton = { TextButton(onClick = viewModel::clearIdeaMessage) { Text("OK") } })
+    }
+    if (guidelineLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+    guidelineMessage?.let { message ->
+        AlertDialog(onDismissRequest = viewModel::clearGuidelineMessage,
+            title = { Text("Diretrizes") }, text = { Text(message) },
+            confirmButton = { TextButton(onClick = viewModel::clearGuidelineMessage) { Text("OK") } })
+    }
 
     // Controla qual projeto está ativo no modal de edição
     var selectedProjectForEdit by remember { mutableStateOf<CorporateProject?>(null) }
     var selectedIdeaForPriority by remember { mutableStateOf<InnovationIdea?>(null) }
+    var selectedIdeaForDecision by remember { mutableStateOf<InnovationIdea?>(null) }
+    var selectedIdeaForAi by remember { mutableStateOf<InnovationIdea?>(null) }
+    var approveDecision by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -91,7 +120,8 @@ fun GestorDashboardScreen(
             }
 
             // Lista de ideias com status Pendente
-            val pendingIdeas = ideas.filter { it.status == "Pendente" }.sortedBy { priorityRank(it.priority) }
+            val pendingIdeas = ideas.filter { it.status == "Pendente" || it.status == "Em análise" }
+                .sortedBy { priorityRank(it.priority) }
             if (pendingIdeas.isEmpty()) {
                 item { Text("Não há ideias pendentes de avaliação.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 16.dp)) }
             }
@@ -131,6 +161,11 @@ fun GestorDashboardScreen(
                                 fontSize = 13.sp
                             )
                         }
+                        idea.managerScore?.let { Text("Pontuação do Gestor: $it / 100", fontSize = 12.sp) }
+                        OutlinedButton(onClick = {
+                            selectedIdeaForAi = idea
+                            viewModel.evaluateIdeaWithAi(idea.id)
+                        }, enabled = !aiLoading) { Text("Solicitar sugestão da IA") }
 
                         // Botões de aprovação e recusa da ideia
                         Row(
@@ -138,7 +173,7 @@ fun GestorDashboardScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Button(
-                                onClick = { viewModel.rejectIdea(idea) },
+                                onClick = { selectedIdeaForDecision = idea; approveDecision = false },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEBEE), contentColor = Color(0xFFC62828)),
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(8.dp)
@@ -147,7 +182,7 @@ fun GestorDashboardScreen(
                             }
 
                             Button(
-                                onClick = { viewModel.approveIdea(idea) },
+                                onClick = { selectedIdeaForDecision = idea; approveDecision = true },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8F5E9), contentColor = Color(0xFF2E7D32)),
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(8.dp)
@@ -248,7 +283,6 @@ fun GestorDashboardScreen(
             item {
                 Button(
                     onClick = {
-                        FirebaseAuth.getInstance().signOut()
                         onLogout()
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -274,6 +308,10 @@ fun GestorDashboardScreen(
         var returnStr by remember { mutableStateOf(proj.financialReturn.toString()) }
         var gainStr by remember { mutableStateOf(proj.productivityGain.toString()) }
         var statusState by remember { mutableStateOf(proj.status) }
+        var startDate by remember(proj.id) { mutableStateOf(proj.startDate.orEmpty()) }
+        var endDate by remember(proj.id) { mutableStateOf(proj.expectedEndDate.orEmpty()) }
+        var stage by remember(proj.id) { mutableStateOf(proj.stage) }
+        var costReduction by remember(proj.id) { mutableStateOf(proj.costReduction.toString()) }
 
         AlertDialog(
             onDismissRequest = { selectedProjectForEdit = null },
@@ -285,6 +323,10 @@ fun GestorDashboardScreen(
                     OutlinedTextField(value = returnStr, onValueChange = { returnStr = it }, label = { Text("Retorno Real (R$)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(value = gainStr, onValueChange = { gainStr = it }, label = { Text("Eficiência (%)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(value = costReduction, onValueChange = { costReduction = it }, label = { Text("Redução de custo (R$)") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = stage, onValueChange = { stage = it }, label = { Text("Etapa") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = startDate, onValueChange = { startDate = it }, label = { Text("Início (AAAA-MM-DD)") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = endDate, onValueChange = { endDate = it }, label = { Text("Fim previsto (AAAA-MM-DD)") }, modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text("Status Atual:", fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -305,15 +347,19 @@ fun GestorDashboardScreen(
             },
             confirmButton = {
                 Button(onClick = {
-                    viewModel.updateProjectValues(
-                        id = proj.id,
-                        investment = investStr.toDoubleOrNull() ?: 0.0,
-                        finReturn = returnStr.toDoubleOrNull() ?: 0.0,
-                        prodGain = gainStr.toIntOrNull() ?: 0,
-                        status = statusState
-                    )
+                    viewModel.updateProjectValues(proj.copy(
+                        investment = investStr.toDouble(), financialReturn = returnStr.toDouble(),
+                        productivityGain = gainStr.toInt(), costReduction = costReduction.toDouble(),
+                        status = statusState, stage = stage, startDate = startDate,
+                        expectedEndDate = endDate))
                     selectedProjectForEdit = null
-                }) { Text("Salvar") }
+                }, enabled = !projectLoading && investStr.toDoubleOrNull()?.let { it >= 0 } == true &&
+                    returnStr.toDoubleOrNull()?.let { it >= 0 } == true &&
+                    gainStr.toIntOrNull()?.let { it >= 0 } == true &&
+                    costReduction.toDoubleOrNull()?.let { it >= 0 } == true &&
+                    stage.isNotBlank() && runCatching { java.time.LocalDate.parse(startDate) }.isSuccess &&
+                    runCatching { java.time.LocalDate.parse(endDate) }.isSuccess &&
+                    endDate >= startDate) { Text("Salvar") }
             },
             dismissButton = {
                 TextButton(onClick = { selectedProjectForEdit = null }) { Text("Voltar") }
@@ -324,6 +370,7 @@ fun GestorDashboardScreen(
     if (selectedIdeaForPriority != null) {
         val idea = selectedIdeaForPriority!!
         var priority by remember(idea.id) { mutableStateOf(idea.priority) }
+        var score by remember(idea.id) { mutableStateOf(idea.managerScore?.toString().orEmpty()) }
 
         AlertDialog(
             onDismissRequest = { selectedIdeaForPriority = null },
@@ -341,18 +388,60 @@ fun GestorDashboardScreen(
                             Text(option, fontSize = 14.sp)
                         }
                     }
+                    OutlinedTextField(value = score, onValueChange = { score = it },
+                        label = { Text("Pontuação (0 a 100)") }, modifier = Modifier.fillMaxWidth())
                 }
             },
             confirmButton = {
                 Button(onClick = {
-                    viewModel.updateIdeaPriority(idea, priority)
+                    viewModel.updateIdeaPriority(idea, priority, score.toDouble())
                     selectedIdeaForPriority = null
-                }) { Text("Salvar") }
+                }, enabled = !ideaLoading && score.toDoubleOrNull()?.let { it in 0.0..100.0 } == true) { Text("Salvar") }
             },
             dismissButton = {
                 TextButton(onClick = { selectedIdeaForPriority = null }) { Text("Cancelar") }
             }
         )
+    }
+    selectedIdeaForDecision?.let { idea ->
+        var comment by remember(idea.id, approveDecision) { mutableStateOf("") }
+        AlertDialog(onDismissRequest = { selectedIdeaForDecision = null },
+            title = { Text(if (approveDecision) "Aprovar ideia" else "Recusar ideia") },
+            text = { OutlinedTextField(value = comment, onValueChange = { comment = it },
+                label = { Text("Justificativa") }, modifier = Modifier.fillMaxWidth()) },
+            confirmButton = { Button(onClick = {
+                if (approveDecision) viewModel.approveIdea(idea, comment)
+                else viewModel.rejectIdea(idea, comment)
+                selectedIdeaForDecision = null
+            }, enabled = comment.isNotBlank() && !ideaLoading) { Text("Confirmar") } },
+            dismissButton = { TextButton(onClick = { selectedIdeaForDecision = null }) { Text("Cancelar") } })
+    }
+    selectedIdeaForAi?.let { idea ->
+        AlertDialog(onDismissRequest = {
+            selectedIdeaForAi = null
+            viewModel.clearAiSuggestion()
+        }, title = { Text("Sugestão gerada por IA") },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text(idea.title, fontWeight = FontWeight.Bold)
+                    if (aiLoading) CircularProgressIndicator()
+                    aiError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    aiSuggestion?.let { suggestion ->
+                        Text("Pontuação sugerida: ${suggestion.score} / 100")
+                        Text("Prioridade sugerida: ${suggestion.priority}")
+                        Text("Diretrizes relacionadas:", fontWeight = FontWeight.Bold)
+                        suggestion.strategyIds.forEach { id ->
+                            Text("• ${guidelines.find { it.id == id }?.title ?: id}")
+                        }
+                        Text("Justificativa:", fontWeight = FontWeight.Bold)
+                        Text(suggestion.reason)
+                    }
+                    Text("A avaliação final é do Gestor.", style = MaterialTheme.typography.bodySmall)
+                }
+            }, confirmButton = { TextButton(onClick = {
+                selectedIdeaForAi = null
+                viewModel.clearAiSuggestion()
+            }) { Text("Fechar") } })
     }
 }
 

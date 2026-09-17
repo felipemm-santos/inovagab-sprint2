@@ -14,16 +14,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
-import com.google.firebase.auth.FirebaseAuthInvalidUserException
-
-private fun roleForEmail(email: String): String? = when (email.trim().lowercase()) {
-    "operador@aguiabranca.com.br" -> "OPERADOR"
-    "gestor@aguiabranca.com.br" -> "GESTOR"
-    "lider@aguiabranca.com.br" -> "LIDER"
-    else -> null
-}
+import br.com.fiap.inovagab.data.repository.AuthRepository
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(onNavigate: (String) -> Unit) {
@@ -31,14 +23,7 @@ fun LoginScreen(onNavigate: (String) -> Unit) {
     var password by rememberSaveable { mutableStateOf("") }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
     var loading by rememberSaveable { mutableStateOf(false) }
-    val auth = remember { FirebaseAuth.getInstance() }
-    val currentUserEmail = auth.currentUser?.email
-
-    LaunchedEffect(currentUserEmail) {
-        currentUserEmail?.let { email ->
-            roleForEmail(email)?.let(onNavigate)
-        }
-    }
+    val scope = rememberCoroutineScope()
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(24.dp),
@@ -62,15 +47,15 @@ fun LoginScreen(onNavigate: (String) -> Unit) {
             }
             if (error == null) {
                 loading = true
-                auth.signInWithEmailAndPassword(normalized, password).addOnCompleteListener { task ->
-                    loading = false
-                    if (task.isSuccessful) {
-                        roleForEmail(task.result.user?.email.orEmpty())?.let(onNavigate) ?: run {
-                            auth.signOut(); error = "Seu usuário foi autenticado, mas o perfil de acesso não foi encontrado."
-                        }
-                    } else error = when (task.exception) {
-                        is FirebaseAuthInvalidCredentialsException, is FirebaseAuthInvalidUserException -> "E-mail ou senha inválidos."
-                        else -> "Não foi possível entrar. Verifique sua conexão e tente novamente."
+                scope.launch {
+                    try {
+                        onNavigate(AuthRepository.login(normalized, password))
+                    } catch (exception: Exception) {
+                        error = if (exception is br.com.fiap.inovagab.data.api.ApiException && exception.status == 401)
+                            "E-mail ou senha inválidos."
+                        else "Não foi possível entrar: ${exception.message}"
+                    } finally {
+                        loading = false
                     }
                 }
             }
@@ -78,14 +63,23 @@ fun LoginScreen(onNavigate: (String) -> Unit) {
             if (loading) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary) else Text("Entrar")
         }
         Spacer(Modifier.height(32.dp))
-        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer), modifier = Modifier.fillMaxWidth()) {
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+            modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Acesso rápido para avaliação", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Text("Use os atalhos abaixo para navegar sem autenticação.", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+                Text("Acesso rápido para avaliação", style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold)
+                Text("Os atalhos abrem as telas para testes visuais. Entre com uma conta para carregar dados e executar ações.",
+                    style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(12.dp))
-                OutlinedButton({ onNavigate("OPERADOR") }, Modifier.fillMaxWidth()) { Text("Abrir visão do Operador") }
-                OutlinedButton({ onNavigate("GESTOR") }, Modifier.fillMaxWidth()) { Text("Abrir visão do Gestor") }
-                OutlinedButton({ onNavigate("LIDER") }, Modifier.fillMaxWidth()) { Text("Abrir visão do Líder") }
+                OutlinedButton(onClick = { AuthRepository.logout(); onNavigate("OPERADOR") }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Abrir visão do Operador")
+                }
+                OutlinedButton(onClick = { AuthRepository.logout(); onNavigate("GESTOR") }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Abrir visão do Gestor")
+                }
+                OutlinedButton(onClick = { AuthRepository.logout(); onNavigate("LIDER") }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Abrir visão do Líder")
+                }
             }
         }
     }

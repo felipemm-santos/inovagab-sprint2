@@ -19,7 +19,6 @@ import br.com.fiap.inovagab.data.model.StrategicGuideline
 import br.com.fiap.inovagab.data.model.toBrazilianCurrency
 import br.com.fiap.inovagab.ui.viewmodel.InnovationViewModel
 import java.util.Locale
-import com.google.firebase.auth.FirebaseAuth
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,13 +31,24 @@ fun LiderDashboardScreen(
     // Busca os dados de projetos e diretrizes na ViewModel
     val projects by viewModel.projects.collectAsState()
     val guidelines by viewModel.guidelines.collectAsState()
+    val summary by viewModel.dashboardSummary.collectAsState()
+    val projectLoading by viewModel.projectLoading.collectAsState()
+    val projectMessage by viewModel.projectMessage.collectAsState()
+    if (projectLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+    projectMessage?.let { message ->
+        AlertDialog(onDismissRequest = viewModel::clearProjectMessage,
+            title = { Text("Projetos") }, text = { Text(message) },
+            confirmButton = { TextButton(onClick = viewModel::clearProjectMessage) { Text("OK") } })
+    }
+    val guidelineLoading by viewModel.guidelineLoading.collectAsState()
+    val guidelineMessage by viewModel.guidelineMessage.collectAsState()
     var showGuidelineDialog by remember { mutableStateOf(false) }
     var selectedGuidelineForEdit by remember { mutableStateOf<StrategicGuideline?>(null) }
 
     // Soma os valores financeiros para o dashboard
-    val totalInvestment = projects.sumOf { it.investment }
-    val totalReturn = projects.sumOf { it.financialReturn }
-    val avgProductivity = if (projects.isNotEmpty()) projects.map { it.productivityGain }.zeroIfEmptyAvg() else 0
+    val totalInvestment = summary?.optDouble("totalInvestment") ?: 0.0
+    val totalReturn = summary?.optDouble("totalFinancialReturn") ?: 0.0
+    val avgProductivity = summary?.optDouble("averageProductivityGain")?.toInt() ?: 0
 
     Scaffold(
         topBar = {
@@ -190,6 +200,8 @@ fun LiderDashboardScreen(
             if (guidelines.isEmpty()) {
                 item { Text("Nenhuma diretriz publicada.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
+            if (guidelineLoading) item { CircularProgressIndicator() }
+            guidelineMessage?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.primary) } }
             items(guidelines, key = { it.id }) { gl ->
                 Card(
                     modifier = Modifier
@@ -200,6 +212,7 @@ fun LiderDashboardScreen(
                         Text(gl.title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF0F2C59))
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(gl.description, fontSize = 13.sp, color = Color.DarkGray)
+                        Text("${gl.category} · ${gl.campaign} · ${gl.status} · versão ${gl.version}", fontSize = 12.sp)
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -263,7 +276,6 @@ fun LiderDashboardScreen(
             item {
                 Button(
                     onClick = {
-                        FirebaseAuth.getInstance().signOut()
                         onLogout()
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -286,6 +298,11 @@ fun LiderDashboardScreen(
     if (showGuidelineDialog) {
         var gTitle by remember { mutableStateOf("") }
         var gDesc by remember { mutableStateOf("") }
+        var gCategory by remember { mutableStateOf("") }
+        var gCampaign by remember { mutableStateOf("") }
+        var gStatus by remember { mutableStateOf("ACTIVE") }
+        var gValidFrom by remember { mutableStateOf("") }
+        var gValidUntil by remember { mutableStateOf("") }
 
         AlertDialog(
             onDismissRequest = { showGuidelineDialog = false },
@@ -295,15 +312,27 @@ fun LiderDashboardScreen(
                     OutlinedTextField(value = gTitle, onValueChange = { gTitle = it }, label = { Text("Título") }, modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(value = gDesc, onValueChange = { gDesc = it }, label = { Text("Descrição") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = gCategory, onValueChange = { gCategory = it }, label = { Text("Categoria") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = gCampaign, onValueChange = { gCampaign = it }, label = { Text("Campanha") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = gValidFrom, onValueChange = { gValidFrom = it }, label = { Text("Início ISO 8601 (opcional)") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = gValidUntil, onValueChange = { gValidUntil = it }, label = { Text("Fim ISO 8601 (opcional)") }, modifier = Modifier.fillMaxWidth())
+                    listOf("DRAFT", "ACTIVE").forEach { option ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = gStatus == option, onClick = { gStatus = option })
+                            Text(option)
+                        }
+                    }
                 }
             },
             confirmButton = {
                 Button(onClick = {
-                    if (gTitle.isNotBlank()) {
-                        viewModel.publishGuideline(gTitle, gDesc)
+                    if (gTitle.isNotBlank() && gDesc.isNotBlank() && gCategory.isNotBlank() && gCampaign.isNotBlank()) {
+                        viewModel.publishGuideline(StrategicGuideline(title = gTitle, description = gDesc,
+                            category = gCategory, campaign = gCampaign, status = gStatus,
+                            validFrom = gValidFrom.ifBlank { null }, validUntil = gValidUntil.ifBlank { null }))
                         showGuidelineDialog = false
                     }
-                }) { Text("Publicar") }
+                }, enabled = !guidelineLoading) { Text("Publicar") }
             },
             dismissButton = {
                 TextButton(onClick = { showGuidelineDialog = false }) { Text("Cancelar") }
@@ -315,6 +344,11 @@ fun LiderDashboardScreen(
         val guideline = selectedGuidelineForEdit!!
         var title by remember(guideline.id) { mutableStateOf(guideline.title) }
         var description by remember(guideline.id) { mutableStateOf(guideline.description) }
+        var category by remember(guideline.id) { mutableStateOf(guideline.category) }
+        var campaign by remember(guideline.id) { mutableStateOf(guideline.campaign) }
+        var status by remember(guideline.id) { mutableStateOf(guideline.status) }
+        var validFrom by remember(guideline.id) { mutableStateOf(guideline.validFrom.orEmpty()) }
+        var validUntil by remember(guideline.id) { mutableStateOf(guideline.validUntil.orEmpty()) }
 
         AlertDialog(
             onDismissRequest = { selectedGuidelineForEdit = null },
@@ -334,15 +368,27 @@ fun LiderDashboardScreen(
                         label = { Text("Descrição") },
                         modifier = Modifier.fillMaxWidth()
                     )
+                    OutlinedTextField(value = category, onValueChange = { category = it }, label = { Text("Categoria") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = campaign, onValueChange = { campaign = it }, label = { Text("Campanha") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = validFrom, onValueChange = { validFrom = it }, label = { Text("Início ISO 8601 (opcional)") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = validUntil, onValueChange = { validUntil = it }, label = { Text("Fim ISO 8601 (opcional)") }, modifier = Modifier.fillMaxWidth())
+                    listOf("DRAFT", "ACTIVE", "ARCHIVED").forEach { option ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = status == option, onClick = { status = option })
+                            Text(option)
+                        }
+                    }
                 }
             },
             confirmButton = {
                 Button(onClick = {
-                    if (title.isNotBlank()) {
-                        viewModel.updateGuideline(guideline, title, description)
+                    if (title.isNotBlank() && description.isNotBlank() && category.isNotBlank() && campaign.isNotBlank()) {
+                        viewModel.updateGuideline(guideline.copy(title = title, description = description,
+                            category = category, campaign = campaign, status = status,
+                            validFrom = validFrom.ifBlank { null }, validUntil = validUntil.ifBlank { null }))
                         selectedGuidelineForEdit = null
                     }
-                }) { Text("Salvar") }
+                }, enabled = !guidelineLoading) { Text("Salvar") }
             },
             dismissButton = {
                 TextButton(onClick = { selectedGuidelineForEdit = null }) { Text("Cancelar") }

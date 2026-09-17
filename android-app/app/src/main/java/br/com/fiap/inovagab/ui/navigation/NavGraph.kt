@@ -5,7 +5,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
-import com.google.firebase.auth.FirebaseAuth
+import br.com.fiap.inovagab.data.repository.AuthRepository
+import br.com.fiap.inovagab.data.api.ApiSession
 
 import br.com.fiap.inovagab.ui.screens.GestorDashboardScreen
 import br.com.fiap.inovagab.ui.screens.LiderDashboardScreen
@@ -18,7 +19,10 @@ fun InovaGabNavGraph(viewModel: InnovationViewModel) {
     // Inicializa o controlador de telas do Compose
     val navController = rememberNavController()
     val logout: () -> Unit = {
-        FirebaseAuth.getInstance().signOut()
+        AuthRepository.logout()
+        viewModel.clearGuidelines()
+        viewModel.clearIdeas()
+        viewModel.clearProjects()
         navController.navigate(Screen.Login.route) {
             popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
             launchSingleTop = true
@@ -33,6 +37,14 @@ fun InovaGabNavGraph(viewModel: InnovationViewModel) {
         // Rota da Tela de Login
         composable(Screen.Login.route) {
             LoginScreen(onNavigate = { role ->
+                if (ApiSession.token == null) {
+                    viewModel.clearGuidelines()
+                    viewModel.clearIdeas()
+                    viewModel.clearProjects()
+                }
+                viewModel.refreshGuidelines()
+                viewModel.refreshIdeas()
+                viewModel.refreshProjects()
                 when (role) {
                     "OPERADOR" -> navController.navigate(Screen.Operador.route) { launchSingleTop = true }
                     "GESTOR" -> navController.navigate(Screen.Gestor.route) { launchSingleTop = true }
