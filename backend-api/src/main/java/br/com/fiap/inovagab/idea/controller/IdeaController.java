@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import br.com.fiap.inovagab.idea.dto.CreateIdeaRequest;
+import br.com.fiap.inovagab.idea.dto.AiEvaluationResponse;
 import br.com.fiap.inovagab.idea.dto.IdeaApprovalResponse;
 import br.com.fiap.inovagab.idea.dto.IdeaDecisionRequest;
 import br.com.fiap.inovagab.idea.dto.IdeaResponse;
@@ -28,6 +29,7 @@ import br.com.fiap.inovagab.idea.dto.PrioritizeIdeaRequest;
 import br.com.fiap.inovagab.idea.dto.UpdateIdeaRequest;
 import br.com.fiap.inovagab.idea.model.IdeaStatus;
 import br.com.fiap.inovagab.idea.service.IdeaService;
+import br.com.fiap.inovagab.idea.service.AiEvaluationService;
 
 @RestController
 @RequestMapping("/v1/ideas")
@@ -35,6 +37,7 @@ import br.com.fiap.inovagab.idea.service.IdeaService;
 public class IdeaController {
 
     private final IdeaService ideaService;
+    private final AiEvaluationService aiEvaluationService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -101,6 +104,12 @@ public class IdeaController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         return ideaService.prioritize(id, request, jwt.getSubject());
+    }
+
+    @PostMapping("/{id}/ai-evaluation")
+    @PreAuthorize("hasRole('GESTOR')")
+    public AiEvaluationResponse evaluateWithAi(@PathVariable String id) {
+        return aiEvaluationService.evaluate(id);
     }
 
     @PostMapping("/{id}/approve")
