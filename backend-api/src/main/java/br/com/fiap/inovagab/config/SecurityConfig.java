@@ -82,6 +82,8 @@ public class SecurityConfig {
                         .authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/v1/ideas/*/priority")
                         .hasRole("GESTOR")
+                        .requestMatchers(HttpMethod.POST, "/v1/ideas/*/ai-evaluation")
+                        .hasRole("GESTOR")
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/v1/ideas/*/approve",

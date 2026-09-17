@@ -12,6 +12,10 @@ server:
   servlet:
     context-path: /api
 
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
+
 management:
   endpoints:
     web:

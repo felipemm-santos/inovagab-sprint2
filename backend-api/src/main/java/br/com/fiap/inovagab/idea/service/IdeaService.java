@@ -210,6 +210,10 @@ public class IdeaService {
                 ));
     }
 
+    public IdeaDocument requireExisting(String id) {
+        return findExisting(id);
+    }
+
     private void requireOwnership(IdeaDocument idea, String userId) {
         if (!idea.getAuthorId().equals(userId)) {
             throw new ApiException(
