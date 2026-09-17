@@ -10,6 +10,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
@@ -20,7 +21,13 @@ private val DarkColorScheme = darkColorScheme(
 private val LightColorScheme = lightColorScheme(
     primary = Purple40,
     secondary = PurpleGrey40,
-    tertiary = Pink40
+    tertiary = Pink40,
+    primaryContainer = Color(0xFFD9E2F7),
+    secondaryContainer = Color(0xFFE1E5EE),
+    error = Color(0xFFB3261E),
+    background = Color(0xFFF8F9FC),
+    surface = Color(0xFFF8F9FC),
+    surfaceVariant = Color(0xFFE8EAF0)
 
     /* Other default colors to override
     background = Color(0xFFFFFBFE),

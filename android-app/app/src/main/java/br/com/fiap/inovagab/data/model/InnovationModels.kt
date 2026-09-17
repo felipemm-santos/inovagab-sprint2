@@ -4,6 +4,7 @@ import com.google.firebase.database.ServerValue
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.text.NumberFormat
 
 // Os três perfis de acesso obrigatórios determinados pelo desafio do Grupo Águia Branca
 enum class UserRole { OPERADOR, GESTOR, LIDER }
@@ -16,6 +17,7 @@ data class InnovationIdea(
     val author: String = "",
     val status: String = "Pendente", // "Pendente" ou "Aprovado"
     val category: String = "Passageiros", // "Passageiros", "Comércio" ou "Logística"
+    val priority: String = "Média", // "Alta", "Média" ou "Baixa"
 
     // Campos de data para rastrear o tempo de resposta do funil
     val createdAt: Any = ServerValue.TIMESTAMP,         // Data em que o operador registrou a ocorrência
@@ -49,3 +51,7 @@ fun Any?.getFormattedDate(): String {
     val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
     return sdf.format(date)
 }
+
+fun Double.toBrazilianCurrency(): String = NumberFormat
+    .getCurrencyInstance(Locale.forLanguageTag("pt-BR"))
+    .format(this)

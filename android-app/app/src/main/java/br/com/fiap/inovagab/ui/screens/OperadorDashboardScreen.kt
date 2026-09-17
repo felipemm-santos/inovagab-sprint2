@@ -1,6 +1,8 @@
 package br.com.fiap.inovagab.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.lazy.LazyColumn
@@ -62,8 +64,8 @@ fun OperadorDashboardScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showDialog = true }, containerColor = Color(0xFF0F2C59)) {
-                Text("+", color = Color.White, fontSize = 24.sp)
+            ExtendedFloatingActionButton(onClick = { showDialog = true }, containerColor = MaterialTheme.colorScheme.primary) {
+                Text("Registrar ideia")
             }
         }
     ) { paddingValues ->
@@ -89,7 +91,7 @@ fun OperadorDashboardScreen(
                 )
             }
 
-            items(guidelines) { item ->
+            items(guidelines, key = { it.id }) { item ->
                 Card(modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 6.dp)) {
@@ -141,7 +143,10 @@ fun OperadorDashboardScreen(
                 ideas.filter { it.category.equals(selectedFilter, ignoreCase = true) }
             }
 
-            items(filteredIdeas) { idea ->
+            if (filteredIdeas.isEmpty()) {
+                item { Text("Nenhuma ideia encontrada para este filtro.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 16.dp)) }
+            }
+            items(filteredIdeas, key = { it.id }) { idea ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -234,7 +239,7 @@ fun OperadorDashboardScreen(
             onDismissRequest = { showDialog = false },
             title = { Text("Registrar Ideia / Dor Operacional") },
             text = {
-                Column {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     OutlinedTextField(
                         value = title,
                         onValueChange = { title = it },
@@ -277,7 +282,7 @@ fun OperadorDashboardScreen(
                         viewModel.sendNewIdea(title, desc, "Colaborador de Bordo", category)
                         showDialog = false
                     }
-                }) { Text("Submeter") }
+                }) { Text("Enviar ideia") }
             },
             dismissButton = {
                 TextButton(onClick = { showDialog = false }) { Text("Cancelar") }
