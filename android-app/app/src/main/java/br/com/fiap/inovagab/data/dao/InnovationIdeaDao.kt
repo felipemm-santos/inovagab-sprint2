@@ -25,7 +25,9 @@ class InnovationIdeaDaoImpl(
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val ideas = snapshot.children.mapNotNull { child ->
-                    child.getValue(InnovationIdea::class.java)
+                    runCatching {
+                        child.getValue(InnovationIdea::class.java)
+                    }.getOrNull()
                 }
                 trySend(ideas)
             }

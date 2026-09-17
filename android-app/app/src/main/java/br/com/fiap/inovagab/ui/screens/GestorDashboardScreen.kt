@@ -1,6 +1,8 @@
 package br.com.fiap.inovagab.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,6 +17,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import br.com.fiap.inovagab.data.model.CorporateProject
+import br.com.fiap.inovagab.data.model.InnovationIdea
+import br.com.fiap.inovagab.data.model.toBrazilianCurrency
 import br.com.fiap.inovagab.ui.viewmodel.InnovationViewModel
 import com.google.firebase.auth.FirebaseAuth
 
@@ -29,9 +33,11 @@ fun GestorDashboardScreen(
     // Carrega estados reativos da ViewModel
     val ideas by viewModel.ideas.collectAsState()
     val projects by viewModel.projects.collectAsState()
+    val guidelines by viewModel.guidelines.collectAsState()
 
     // Controla qual projeto está ativo no modal de edição
     var selectedProjectForEdit by remember { mutableStateOf<CorporateProject?>(null) }
+    var selectedIdeaForPriority by remember { mutableStateOf<InnovationIdea?>(null) }
 
     Scaffold(
         topBar = {
@@ -85,7 +91,14 @@ fun GestorDashboardScreen(
             }
 
             // Lista de ideias com status Pendente
-            items(ideas.filter { it.status == "Pendente" }) { idea ->
+            val pendingIdeas = ideas.filter { it.status == "Pendente" }.sortedBy { priorityRank(it.priority) }
+            if (pendingIdeas.isEmpty()) {
+                item { Text("Não há ideias pendentes de avaliação.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 16.dp)) }
+            }
+            items(
+                pendingIdeas,
+                key = { it.id }
+            ) { idea ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -106,6 +119,18 @@ fun GestorDashboardScreen(
 
                         Text(idea.description, fontSize = 13.sp, color = Color.DarkGray)
                         Spacer(modifier = Modifier.height(16.dp))
+
+                        TextButton(
+                            onClick = { selectedIdeaForPriority = idea },
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text(
+                                "Prioridade: ${idea.priority}",
+                                color = Color(0xFF0F2C59),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
 
                         // Botões de aprovação e recusa da ideia
                         Row(
@@ -138,6 +163,37 @@ fun GestorDashboardScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
+                    text = "Diretrizes Estratégicas Vigentes",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            items(guidelines, key = { it.id }) { guideline ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F9FA))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            guideline.title,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = Color(0xFF0F2C59)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(guideline.description, fontSize = 13.sp, color = Color.DarkGray)
+                    }
+                }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
                     text = "Projetos & Iniciativas Ativas",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
@@ -146,8 +202,7 @@ fun GestorDashboardScreen(
                 )
             }
 
-            // Lista de projetos e iniciativas ativas
-            items(projects) { project ->
+            items(projects, key = { it.id }) { project ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -168,7 +223,7 @@ fun GestorDashboardScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text("Eficiência Mapeada: ${project.productivityGain}%", fontSize = 12.sp, color = Color.Gray)
-                        Text("Capital Investido: R$ ${project.investment}", fontSize = 12.sp, color = Color.Gray)
+                        Text("Capital investido: ${project.investment.toBrazilianCurrency()}", fontSize = 12.sp, color = Color.Gray)
 
                         Spacer(modifier = Modifier.height(12.dp))
 
@@ -224,7 +279,7 @@ fun GestorDashboardScreen(
             onDismissRequest = { selectedProjectForEdit = null },
             title = { Text("Atualizar Progresso Corporativo") },
             text = {
-                Column {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     OutlinedTextField(value = investStr, onValueChange = { investStr = it }, label = { Text("Investimento (R$)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(value = returnStr, onValueChange = { returnStr = it }, label = { Text("Retorno Real (R$)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
@@ -265,4 +320,44 @@ fun GestorDashboardScreen(
             }
         )
     }
+
+    if (selectedIdeaForPriority != null) {
+        val idea = selectedIdeaForPriority!!
+        var priority by remember(idea.id) { mutableStateOf(idea.priority) }
+
+        AlertDialog(
+            onDismissRequest = { selectedIdeaForPriority = null },
+            title = { Text("Definir Prioridade") },
+            text = {
+                Column {
+                    Text("Selecione a prioridade da ideia", fontSize = 13.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    listOf("Alta", "Média", "Baixa").forEach { option ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = priority == option,
+                                onClick = { priority = option }
+                            )
+                            Text(option, fontSize = 14.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.updateIdeaPriority(idea, priority)
+                    selectedIdeaForPriority = null
+                }) { Text("Salvar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { selectedIdeaForPriority = null }) { Text("Cancelar") }
+            }
+        )
+    }
+}
+
+private fun priorityRank(priority: String): Int = when (priority) {
+    "Alta" -> 0
+    "Média" -> 1
+    else -> 2
 }

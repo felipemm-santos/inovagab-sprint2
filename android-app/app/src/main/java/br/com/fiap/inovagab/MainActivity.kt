@@ -9,13 +9,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.fiap.inovagab.ui.navigation.InovaGabNavGraph
+import br.com.fiap.inovagab.ui.theme.MyApplicationTheme
 import br.com.fiap.inovagab.ui.viewmodel.InnovationViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme {
+            MyApplicationTheme(dynamicColor = false) {
                 // Surface é o container principal que define o fundo do app
                 Surface(
                     modifier = Modifier.fillMaxSize(),

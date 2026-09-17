@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import com.google.firebase.auth.FirebaseAuth
 
 import br.com.fiap.inovagab.ui.screens.GestorDashboardScreen
 import br.com.fiap.inovagab.ui.screens.LiderDashboardScreen
@@ -15,6 +17,13 @@ import br.com.fiap.inovagab.ui.viewmodel.InnovationViewModel
 fun InovaGabNavGraph(viewModel: InnovationViewModel) {
     // Inicializa o controlador de telas do Compose
     val navController = rememberNavController()
+    val logout: () -> Unit = {
+        FirebaseAuth.getInstance().signOut()
+        navController.navigate(Screen.Login.route) {
+            popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+            launchSingleTop = true
+        }
+    }
 
     // Define a árvore de navegação do aplicativo
     NavHost(
@@ -25,9 +34,9 @@ fun InovaGabNavGraph(viewModel: InnovationViewModel) {
         composable(Screen.Login.route) {
             LoginScreen(onNavigate = { role ->
                 when (role) {
-                    "OPERADOR" -> navController.navigate(Screen.Operador.route)
-                    "GESTOR" -> navController.navigate(Screen.Gestor.route)
-                    "LIDER" -> navController.navigate(Screen.Lider.route)
+                    "OPERADOR" -> navController.navigate(Screen.Operador.route) { launchSingleTop = true }
+                    "GESTOR" -> navController.navigate(Screen.Gestor.route) { launchSingleTop = true }
+                    "LIDER" -> navController.navigate(Screen.Lider.route) { launchSingleTop = true }
                 }
             })
         }
@@ -36,14 +45,8 @@ fun InovaGabNavGraph(viewModel: InnovationViewModel) {
         composable(Screen.Operador.route) {
             OperadorDashboardScreen(
                 viewModel,
-                onBack = { navController.popBackStack() },
-                onLogout = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(0) {
-                            inclusive = true
-                        }
-                    }
-                }
+                onBack = logout,
+                onLogout = logout
             )
         }
 
@@ -51,14 +54,8 @@ fun InovaGabNavGraph(viewModel: InnovationViewModel) {
         composable(Screen.Gestor.route) {
             GestorDashboardScreen(
                 viewModel,
-                onBack = { navController.popBackStack() },
-                onLogout = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(0) {
-                            inclusive = true
-                        }
-                    }
-                }
+                onBack = logout,
+                onLogout = logout
             )
         }
 
@@ -66,14 +63,8 @@ fun InovaGabNavGraph(viewModel: InnovationViewModel) {
         composable(Screen.Lider.route) {
             LiderDashboardScreen(
                 viewModel,
-                onBack = { navController.popBackStack() },
-                onLogout = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(0) {
-                            inclusive = true
-                        }
-                    }
-                }
+                onBack = logout,
+                onLogout = logout
             )
         }
     }

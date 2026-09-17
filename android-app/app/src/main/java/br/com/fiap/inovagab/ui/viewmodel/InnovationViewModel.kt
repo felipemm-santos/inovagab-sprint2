@@ -98,6 +98,13 @@ class InnovationViewModel(
         }
     }
 
+    // Atualiza a prioridade definida pelo gestor para a ideia selecionada
+    fun updateIdeaPriority(idea: InnovationIdea, priority: String) {
+        viewModelScope.launch {
+            ideaRepository.saveIdea(idea.copy(priority = priority))
+        }
+    }
+
     // Grava as novas métricas de progresso e finanças do projeto
     fun updateProjectValues(id: String, investment: Double, finReturn: Double, prodGain: Int, status: String) {
         viewModelScope.launch {
@@ -124,6 +131,15 @@ class InnovationViewModel(
                 description = desc
             )
             guidelineRepository.saveGuideline(newGuideline)
+        }
+    }
+
+    // Atualiza uma diretriz preservando sua identificação no Firebase
+    fun updateGuideline(guideline: StrategicGuideline, title: String, desc: String) {
+        viewModelScope.launch {
+            guidelineRepository.saveGuideline(
+                guideline.copy(title = title, description = desc)
+            )
         }
     }
 

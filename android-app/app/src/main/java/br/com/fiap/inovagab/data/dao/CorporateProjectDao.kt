@@ -25,7 +25,9 @@ class CorporateProjectDaoImpl(
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val projects = snapshot.children.mapNotNull { child ->
-                    child.getValue(CorporateProject::class.java)
+                    runCatching {
+                        child.getValue(CorporateProject::class.java)
+                    }.getOrNull()
                 }
                 trySend(projects)
             }

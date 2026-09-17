@@ -25,7 +25,9 @@ class StrategicGuidelineDaoImpl(
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val guidelines = snapshot.children.mapNotNull { child ->
-                    child.getValue(StrategicGuideline::class.java)
+                    runCatching {
+                        child.getValue(StrategicGuideline::class.java)
+                    }.getOrNull()
                 }
                 trySend(guidelines)
             }
