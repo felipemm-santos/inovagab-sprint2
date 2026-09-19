@@ -4,13 +4,13 @@ Aplicativo acadêmico de gestão do funil de inovação do Grupo Águia Branca. 
 
 ## Tecnologias e arquitetura
 
-| Camada | Tecnologias em uso |
-| --- | --- |
+| Camada | Tecnologias em uso                                                                                                                       |
+| --- |------------------------------------------------------------------------------------------------------------------------------------------|
 | Android | Kotlin 2.1.21, Jetpack Compose, Material Design 3, MVVM, StateFlow, Coroutines, Navigation Compose; cliente REST com `HttpURLConnection` |
-| Backend | Java 21, Spring Boot 4.1.1, Spring MVC, Spring Security, JWT, Spring Data MongoDB, Validation, Actuator, Lombok |
-| Dados | MongoDB 8 no Docker Compose local |
-| IA | Gemini `gemini-2.5-flash-lite` via backend, como sugestão para o Gestor |
-| Testes | JUnit, Spring Boot Test, Testcontainers para MongoDB |
+| Backend | Java 21, Spring Boot 4.1.1, Spring MVC, Spring Security, JWT, Spring Data MongoDB, Validation, Actuator, Lombok                          |
+| Dados | MongoDB 8 no Docker Compose local                                                                                                        |
+| IA | Gemini `gemini-3.5-flash-lite` via backend, como sugestão para o Gestor                                                                  |
+| Testes | JUnit, Spring Boot Test, Testcontainers para MongoDB                                                                                     |
 
 ```mermaid
 flowchart LR

@@ -29,7 +29,7 @@ public class HttpGeminiClient implements GeminiClient {
     @Value("${gemini.api-key:}")
     private String apiKey;
 
-    @Value("${gemini.model:gemini-2.5-flash-lite}")
+    @Value("${gemini.model:gemini-3.5-flash-lite}")
     private String model;
 
     @Override
@@ -84,5 +84,7 @@ public class HttpGeminiClient implements GeminiClient {
         } catch (IOException exception) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "AI_UNAVAILABLE", "Gemini is unavailable or timed out");
         }
+
+
     }
 }
